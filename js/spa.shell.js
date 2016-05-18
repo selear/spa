@@ -8,7 +8,7 @@
 spa.shell = (function () {
   //----- Begin Module scope variables -----
   var configMap = {
-        main_html: new String() +
+        main_html: new String()
           + '<div class="spa-shell-head">'
             + '<div class="spa-shell-head-logo"></div>'
             + '<div class="spa-shell-head-acct"></div>'
