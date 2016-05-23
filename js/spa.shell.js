@@ -9,7 +9,7 @@ spa.shell = (function () {
   //+++++ Module scope variables +++++
   var configMap = {
         anchor_schema_map: {
-          chat: { open: true, closed: true }
+          chat: { opened: true, closed: true }
         },
         main_html: new String()
           + '<div class="spa-shell-head">'
@@ -22,7 +22,6 @@ spa.shell = (function () {
             + '<div class="spa-shell-main-content"></div>'
           + '</div>'
           + '<div class="spa-shell-foot"></div>'
-          + '<div class="spa-shell-chat"></div>'
           + '<div class="spa-shell-modal"></div>',
         chat_extend_time: 250,
         chat_retract_time: 300,
@@ -32,15 +31,13 @@ spa.shell = (function () {
         chat_retracted_title: 'Click to extend'
     },
         stateMap = {
-          $container: null,
-          anchor_map: {},
-          is_chat_retracted: true
+          anchor_map: {}
     },
         jqueryMap = {},
 
-        copyAnchorMap, setJqueryMap, toggleChat,
+        copyAnchorMap, setJqueryMap,
         changeAnchorPart, onHashchange,
-        onClickChat, initModule;
+        setChatAnchor, initModule;
     //----- Module scope variables -----
 
     //+++++ utility methods +++++
@@ -93,8 +90,7 @@ spa.shell = (function () {
     setJqueryMap = function () {
         var $container = stateMap.$container;
         jqueryMap = {
-          $container : $container,
-          $chat: $container.find('.spa-shell-chat') //$container作为总的容器, 作为root供其他元素进行使用
+          $container: $container
         };
     };
 
@@ -149,10 +145,12 @@ spa.shell = (function () {
 
     //+++++ event handlers +++++
     onHashchange = function(event) {
+
       var anchor_map_previous = copyAnchorMap(),
           anchor_map_proposed,
           _s_chat_previous, _s_chat_proposed,
-          s_chat_proposed;
+          s_chat_proposed,
+          is_ok = true;
 
       try {
         anchor_map_proposed = $.uriAnchor.makeAnchorMap();
@@ -168,27 +166,34 @@ spa.shell = (function () {
       if(!anchor_map_previous || _s_chat_previous !== _s_chat_proposed) {
         s_chat_proposed = anchor_map_proposed.chat;
         switch(s_chat_proposed) {
-          case 'open':
-            toggleChat(true);
+          case 'opened':
+            is_ok = spa.chat.setSliderPosition('opened');
             break;
           case 'closed':
-            toggleChat(false);
+            is_ok = spa.chat.setSliderPosition('closed');
             break;
           default:
-            toggleChat(false);
+            spa.chat.setSliderPosition('closed');
             delete anchor_map_proposed.chat;
             $.uriAnchor.setAnchor(anchor_map_proposed, null, true);
+        }
+      }
+
+      if(!is_ok) {
+        if(anchor_map_previous) {
+          $.uriAnchor.setAnchor(anchor_map_previous, null, true);
+          stateMap.anchor_map = anchor_map_previous;
+        } else {
+          delete anchor_map_proposed.chat;
+          $.uriAnchor.setAnchor(anchor_map_proposed, null, true);
         }
       }
 
       return false;
     };
 
-    onClickChat = function (event) {
-      changeAnchorPart({
-        chat: (stateMap.is_chat_retracted ? 'open' : 'closed')
-      });
-      return false;
+    setChatAnchor = function (position_type) {
+      return changeAnchorPart({ chat: position_type });
     };
     //----- event handlers -----
 
@@ -198,16 +203,16 @@ spa.shell = (function () {
       $container.html( configMap.main_html );
       setJqueryMap();
 
-      //初始化chat slider并绑定事件
-      stateMap.is_chat_retracted = true;
-      jqueryMap.$chat.attr('title', configMap.chat_retracted_title).click(onClickChat);
-
       $.uriAnchor.configModule({
         schema_map: configMap.anchor_schema_map
       });
 
-      spa.chat.configModule({});
-      spa.chat.initModule(jqueryMap.$chat);
+      spa.chat.configModule({
+        set_chat_anchor: setChatAnchor,
+        chat_model: spa.model.chat,
+        people_model: spa.model.people
+      });
+      spa.chat.initModule(jqueryMap.$container);
 
       $(window).bind('hashchange', onHashchange).trigger('hashchange');
     };
